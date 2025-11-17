@@ -107,28 +107,28 @@ vyatta_config_commit ()
     echo "No configuration changes to commit"
     return 1;
   fi
+
   local comment="commit"
-  local next=0
-  local -a args=()
-  for arg in "$@"; do
-    if [ "$next" == "1" ]; then
-      comment=$arg
-      next=0;
-    elif [ "$arg" == "comment" ]; then
-      next=1
-    elif [ "$arg" == "confirm" ]; then
-      echo Use commit-confirm command
+  if [ $# -gt 0 ] ; then
+    if [ $# = 1 ] || [ $# -gt 2 ] || [ "$1" != "comment" ]; then
+      if [ "$1" == "confirm" ]; then
+        echo "Use commit-confirm command"
+        return 1
+      fi
+      echo "Error: commit accepts either no arguments, or optional 'comment'" \
+           "with comment text as second argument."
+      echo -e "\tUsage: 'commit [comment COMMENTTEXT]'"
       return 1;
-    else
-      args[${#args[@]}]="$arg"    
     fi
-  done
+    comment="$2"
+  fi
 
   export COMMIT_COMMENT="$comment"
   export COMMIT_VIA=cli
-  /opt/vyatta/sbin/my_commit "${args[@]}" 2>&1
+  /opt/vyatta/sbin/my_commit 2>&1
   unset COMMIT_VIA
   unset COMMIT_COMMENT
+  eval "${vyos_libexec_dir}/reset_section.py vpp --pid $$"
 }
 
 vyatta_config_commit-confirm ()
@@ -156,7 +156,7 @@ vyatta_config_commit-confirm ()
   eval "sudo sg vyattacfg \"$cmd\" "
   if [ $? = 0 ]; then
     export IN_COMMIT_CONFIRM=t
-    vyatta_config_commit "$@"
+    vyatta_config_commit "${args[@]}"
     unset IN_COMMIT_CONFIRM
   fi
 }
